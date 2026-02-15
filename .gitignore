@@ -1,0 +1,7 @@
+dist
+node_modules
+logs
+*.log
+npm-debug.log*
+*.tsbuildinfo
+.DS_Store
