@@ -1,4 +1,4 @@
-# Spatial Presence SaaS – Technical Architecture Document
+# Deskly – Technical Architecture Document
 
 ## 1. Overview
 
@@ -219,7 +219,7 @@ Leaving meeting:
 
 # 10. Electron Logic
 
-Electron wraps same Vue app.
+Electron wraps same React app.
 
 ---
 
@@ -332,7 +332,7 @@ Presence payloads are small JSON rows.
 # 14. Final Architecture Diagram
 
 ```
-VueSPA(Web or Electron)
+React(Web or Electron)
         ↓
 SupabaseAuth(OAuth → JWT)
         ↓

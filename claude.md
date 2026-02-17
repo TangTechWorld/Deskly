@@ -1,4 +1,4 @@
-# Spatial Presence SaaS ? Deskly
+# Deskly
 
 Open spatial presence layer for link-based collaboration.
 The system provides:

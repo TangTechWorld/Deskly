@@ -19,7 +19,7 @@
 
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "package.json": ".nvmrc, eslint.config.mjs, next-env.d.ts, tsconfig.json, bun.lock, next.config.ts, postcss.config.mjs",
+    "package.json": ".nvmrc, eslint.config.mjs, next-env.d.ts, tsconfig.json, bun.lock, next.config.ts, postcss.config.mjs, tailwind.config.mjs, components.json",
     ".gitignore": ".gitattributes",
     ".env": ".env.*"
   }

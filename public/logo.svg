@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top Face -->
+  <polygon 
+    points="50,0 100,26 50,52 0,26"
+    fill="#5DADE2"
+    stroke="#FFFFFF"
+    stroke-width="6"
+    stroke-linejoin="round"/>
+  <!-- Left Face -->
+  <polygon 
+    points="0,26 50,52 50,100 0,74"
+    fill="#2E86C1"
+    stroke="#FFFFFF"
+    stroke-width="6"
+    stroke-linejoin="round"/>
+  <!-- Right Face -->
+  <polygon 
+    points="100,26 50,52 50,100 100,74"
+    fill="#58B947"
+    stroke="#FFFFFF"
+    stroke-width="6"
+    stroke-linejoin="round"/>
+  <!-- Hollow -->
+  <polygon 
+    points="50,24 74,38 50,52 26,38"
+    fill="#FFFFFF"/>
+</svg>
