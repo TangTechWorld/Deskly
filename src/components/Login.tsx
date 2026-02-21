@@ -6,23 +6,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { supabase } from "@/utils/supabase";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "./ui/button";
 
-export function LoginDialog() {
+export function Login({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
-  const handleLogin = (provider: string) => {
-    // Implement login logic here
-    setOpen(false);
+  const checkIfLoggedIn = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session !== null;
   };
+
+  const openLogin = async () => {
+    if (!(await checkIfLoggedIn())) {
+      setOpen(true);
+    }
+  };
+
+  const handleLogin = async (provider: "google" | "github") => {
+    await supabase.auth.signInWithOAuth({ provider });
+  };
+
+  // Check if the user is already logged in Landing page loads
+  // On Supabase login, the page will be redirected and this check will run again
+  void checkIfLoggedIn();
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} size="lg">
-        Get Started
-      </Button>
+      <span onClick={() => void openLogin()}>{children}</span>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -35,7 +50,7 @@ export function LoginDialog() {
           <div className="space-y-3 py-4">
             <Button
               size="lg"
-              onClick={() => handleLogin("google")}
+              onClick={() => void handleLogin("google")}
               className="w-full gap-2"
               variant="outline"
             >
@@ -62,7 +77,7 @@ export function LoginDialog() {
 
             <Button
               size="lg"
-              onClick={() => handleLogin("github")}
+              onClick={() => void handleLogin("github")}
               className="w-full gap-2"
               variant="outline"
             >

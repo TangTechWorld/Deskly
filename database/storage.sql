@@ -75,7 +75,7 @@ FOR DELETE USING (
   )
 );
 
--- Members can upload cabin images for their default cabin
+-- Members can upload cabin images for their own cabin
 CREATE POLICY "org_assets_member_cabin_insert" ON storage.objects
 FOR INSERT WITH CHECK (
   bucket_id = 'org-assets'
@@ -85,12 +85,12 @@ FOR INSERT WITH CHECK (
     SELECT 1 FROM organization_members m
     WHERE m.organization_id = (storage.foldername(name))[1]::uuid
       AND m.user_id = auth.uid()
-      AND m.default_cabin_id::text = split_part(storage.filename(name), '.', 1)
+      AND m.cabin_id::text = split_part(storage.filename(name), '.', 1)
       AND m.role = 'MEMBER'
   )
 );
 
--- Members can update cabin images for their default cabin
+-- Members can update cabin images for their own cabin
 CREATE POLICY "org_assets_member_cabin_update" ON storage.objects
 FOR UPDATE USING (
   bucket_id = 'org-assets'
@@ -100,7 +100,7 @@ FOR UPDATE USING (
     SELECT 1 FROM organization_members m
     WHERE m.organization_id = (storage.foldername(name))[1]::uuid
       AND m.user_id = auth.uid()
-      AND m.default_cabin_id::text = split_part(storage.filename(name), '.', 1)
+      AND m.cabin_id::text = split_part(storage.filename(name), '.', 1)
       AND m.role = 'MEMBER'
   )
 );

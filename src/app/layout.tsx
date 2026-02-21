@@ -1,7 +1,8 @@
-import { LoginDialog } from "@/components/LoginDialog";
-import { Users } from "lucide-react";
+import { Login } from "@/components/Login";
+import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
 import Link from "next/dist/client/link";
+import Image from "next/image";
 // @ts-expect-error CSS import side effects
 import "./globals.css";
 
@@ -23,12 +24,20 @@ export default function RootLayout({
             <nav className="flex items-center justify-between">
               <Link href="/" className="mx-2">
                 <div className="flex items-center gap-2">
-                  <Users className="w-8 h-8 text-blue-600" />
+                  <Image
+                    src="/logo.svg"
+                    alt="Deskly Logo"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 text-blue-600"
+                  />
                   <span className="text-xl font-semibold">Deskly</span>
                 </div>
               </Link>
               <div className="flex gap-3">
-                <LoginDialog />
+                <Login>
+                  <Button size="lg">Get Started</Button>
+                </Login>
               </div>
             </nav>
           </header>
@@ -40,7 +49,13 @@ export default function RootLayout({
               <div className="grid md:grid-cols-4 gap-8">
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Users className="w-8 h-8 text-blue-600" />
+                    <Image
+                      src="/logo.svg"
+                      alt="Deskly Logo"
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 text-blue-600"
+                    />
                     <span className="font-semibold">Deskly</span>
                   </div>
                   <p className="text-sm text-gray-600">

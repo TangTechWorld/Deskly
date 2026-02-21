@@ -1,16 +1,17 @@
+import { Login } from "@/components/Login";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Globe, MessageSquare, Shield, Users, Video, Zap } from "lucide-react";
 import Image from "next/image";
 
 export default function LandingPage() {
   return (
     <div>
-      {/* Hero */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           Your Team&apos;s Spatial Presence Layer
@@ -19,7 +20,6 @@ export default function LandingPage() {
           Know where your teammates are, what they&apos;re working on, and join
           them instantly. Link-based collaboration that feels natural.
         </p>
-        {/* Feature Image */}
         <div className="max-w-4xl mx-auto rounded-lg shadow-2xl overflow-hidden">
           <Image
             src="/collaborate.png"
@@ -31,7 +31,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
       <section className="container mx-auto px-4 py-20">
         <h2 className="text-3xl font-bold text-center mb-12">
           Everything you need for spatial collaboration
@@ -70,7 +69,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works */}
       <section className="bg-blue-50 py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">How it works</h2>
@@ -99,7 +97,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
       <section className="container mx-auto px-4 py-20">
         <h2 className="text-3xl font-bold text-center mb-12">
           Frequently Asked Questions
@@ -163,15 +160,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-12">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-4">
             Ready to transform how your team collaborates?
           </h2>
-          <p className="text-xl opacity-90">
+          <p className="mb-8 text-xl opacity-90">
             Join teams who are creating better remote work experiences.
           </p>
+          <Login>
+            <Button size="lg" variant="secondary">
+              Get Started for Free
+            </Button>
+          </Login>
         </div>
       </section>
     </div>

@@ -1,7 +1,7 @@
 
 
 -- Functions for complex operations that involve multiple steps and need to bypass RLS policies. These functions are defined with SECURITY DEFINER to allow them to perform actions that the calling user may not have direct permissions for, while still enforcing necessary checks within the function logic.
--- The create_organization function creates a new organization, a default map, and a default cabin for the creator, and adds the creator as an OWNER member. It checks that the user is authenticated and has a profile before allowing organization creation.
+-- The create_organization function creates a new organization, a map, and a cabin for the creator, and adds the creator as an OWNER member. It checks that the user is authenticated and has a profile before allowing organization creation.
 CREATE OR REPLACE FUNCTION create_organization(
   org_name text
 ) RETURNS uuid AS $$
@@ -10,6 +10,8 @@ DECLARE
   new_map_id uuid;
   new_cabin_id uuid;
 BEGIN
+  -- Disable RLS for this function - organization insert is restricted by policy
+  
   IF auth.uid() IS NULL OR NOT EXISTS (SELECT 1 FROM users WHERE id = auth.uid()) THEN
     RAISE EXCEPTION 'User profile not found. Complete signup first.';
   END IF;
@@ -29,15 +31,14 @@ BEGIN
   VALUES (new_org_id, new_map_id, 'Owner Cabin', 'desk', 0, 0, 100, 100)
   RETURNING id INTO new_cabin_id;
   
-  -- Insert creator as OWNER with default cabin
-  INSERT INTO public.organization_members (organization_id, user_id, role, default_cabin_id)
+  -- Insert creator as OWNER with cabin
+  INSERT INTO public.organization_members (organization_id, user_id, role, cabin_id)
   VALUES (new_org_id, auth.uid(), 'OWNER', new_cabin_id);
   
   RETURN new_org_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET row_security = OFF SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION create_organization(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION create_organization(text) TO authenticated;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -52,6 +53,8 @@ DECLARE
   v_map_id uuid;
   v_cabin_id uuid;
 BEGIN
+  -- Disable RLS for this function - user inserting themselves as new member needs bypass
+  
   IF auth.uid() IS NULL OR NOT EXISTS (SELECT 1 FROM users WHERE id = auth.uid()) THEN
     RAISE EXCEPTION 'User profile not found. Complete signup first.';
   END IF;
@@ -65,7 +68,8 @@ BEGIN
     RAISE EXCEPTION 'Invitation not found';
   END IF;
 
-  IF LOWER(v_email) <> LOWER(auth.email()) THEN
+  -- Check invitation email matches current user's auth email
+  IF LOWER(get_auth_email()) IS DISTINCT FROM LOWER(v_email) THEN
     RAISE EXCEPTION 'Invitation does not belong to this user';
   END IF;
 
@@ -94,7 +98,7 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM organization_members om 
       WHERE om.organization_id = v_org_id
-        AND om.default_cabin_id = c.id
+        AND om.cabin_id = c.id
     )
   ORDER BY c.created_at
   LIMIT 1
@@ -105,15 +109,14 @@ BEGIN
   END IF;
 
   -- Insert as MEMBER
-  INSERT INTO public.organization_members (organization_id, user_id, role, default_cabin_id)
+  INSERT INTO public.organization_members (organization_id, user_id, role, cabin_id)
   VALUES (v_org_id, auth.uid(), 'MEMBER', v_cabin_id);
 
   -- Delete the invitation
   DELETE FROM public.organization_invitations WHERE id = p_invitation_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET row_security = OFF SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION accept_invitation(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION accept_invitation(uuid) TO authenticated;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -158,10 +161,9 @@ BEGIN
   LEFT JOIN users u ON u.id = a.actor_id
   WHERE a.organization_id = p_org_id
   ORDER BY a.created_at DESC
-  LIMIT p_limit
+  LIMIT LEAST(p_limit, 100) -- Enforce a maximum limit of 100
   OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION get_audit_logs FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_audit_logs TO authenticated;

@@ -44,7 +44,7 @@ CREATE OR REPLACE FUNCTION prevent_id_update()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS DISTINCT FROM OLD.id THEN
-    RAISE EXCEPTION 'Primary key id cannot be modified';
+    RAISE EXCEPTION 'id cannot be updated';
   END IF;
 
   RETURN NEW;
@@ -78,7 +78,7 @@ CREATE OR REPLACE FUNCTION prevent_created_at_update()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN
-    RAISE EXCEPTION 'created_at cannot be modified';
+    RAISE EXCEPTION 'created_at cannot be updated';
   END IF;
 
   RETURN NEW;
@@ -208,11 +208,7 @@ BEGIN
   INSERT INTO public.audit_logs (organization_id, actor_id, action, target_type, target_id, metadata)
   VALUES (p_org_id, auth.uid(), p_action, p_target_type, p_target_id, p_metadata);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
-
-REVOKE ALL ON FUNCTION audit_log FROM PUBLIC;
-REVOKE ALL ON FUNCTION audit_log FROM authenticated;
-
+$$ LANGUAGE plpgsql SECURITY DEFINER SET row_security = OFF SET search_path = public, pg_temp;
 
 -- org.created, org.updated audit events
 CREATE OR REPLACE FUNCTION audit_organization_change()
@@ -243,6 +239,27 @@ CREATE TRIGGER trg_audit_organization_change
 AFTER INSERT OR UPDATE ON organizations
 FOR EACH ROW
 EXECUTE FUNCTION audit_organization_change();
+
+
+-- org.deleted audit event
+CREATE OR REPLACE FUNCTION audit_organization_delete()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM audit_log(
+    OLD.id,
+    'org.deleted',
+    'organization',
+    OLD.id,
+    jsonb_build_object('name', OLD.name)
+  );
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_audit_organization_delete
+AFTER DELETE ON organizations
+FOR EACH ROW
+EXECUTE FUNCTION audit_organization_delete();
 
 
 -- member.added, member.joined audit events (via invitation)
@@ -280,13 +297,13 @@ BEGIN
     );
   END IF;
   
-  IF OLD.default_cabin_id IS DISTINCT FROM NEW.default_cabin_id THEN
+  IF OLD.cabin_id IS DISTINCT FROM NEW.cabin_id THEN
     PERFORM audit_log(
       NEW.organization_id,
       'member.cabin_reassigned',
       'member',
       NEW.user_id,
-      jsonb_build_object('old_cabin', OLD.default_cabin_id, 'new_cabin', NEW.default_cabin_id)
+      jsonb_build_object('old_cabin', OLD.cabin_id, 'new_cabin', NEW.cabin_id)
     );
   END IF;
   
@@ -368,26 +385,17 @@ FOR EACH ROW
 EXECUTE FUNCTION audit_invitation_insert();
 
 
--- invitation.revoked audit event (admin deleted it)
+-- invitation.deleted audit event (accepted or revoked)
 CREATE OR REPLACE FUNCTION audit_invitation_delete()
 RETURNS trigger AS $$
 BEGIN
-  -- Only log if deleted by admin (not by accept_invitation)
-  -- We detect this by checking if the user just became a member
-  IF NOT EXISTS (
-    SELECT 1 FROM organization_members
-    WHERE organization_id = OLD.organization_id
-      AND user_id = auth.uid()
-      AND created_at > now() - interval '30 seconds'
-  ) THEN
-    PERFORM audit_log(
-      OLD.organization_id,
-      'invitation.revoked',
-      'invitation',
-      OLD.id,
-      jsonb_build_object('email', mask_email(OLD.email))
-    );
-  END IF;
+  PERFORM audit_log(
+    OLD.organization_id,
+    'invitation.deleted',
+    'invitation',
+    OLD.id,
+    jsonb_build_object('email', mask_email(OLD.email))
+  );
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
@@ -396,6 +404,82 @@ CREATE TRIGGER trg_audit_invitation_delete
 AFTER DELETE ON organization_invitations
 FOR EACH ROW
 EXECUTE FUNCTION audit_invitation_delete();
+
+
+-- map.created audit event
+CREATE OR REPLACE FUNCTION audit_map_insert()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM audit_log(
+    NEW.organization_id,
+    'map.created',
+    'map',
+    NEW.id,
+    jsonb_build_object('organization_id', NEW.organization_id)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_audit_map_insert
+AFTER INSERT ON maps
+FOR EACH ROW
+EXECUTE FUNCTION audit_map_insert();
+
+
+-- map.updated audit event
+CREATE OR REPLACE FUNCTION audit_map_update()
+RETURNS trigger AS $$
+DECLARE
+  changes jsonb := '{}';
+BEGIN
+  IF OLD.background_url IS DISTINCT FROM NEW.background_url THEN
+    changes := changes || jsonb_build_object('background_url', 'changed');
+  END IF;
+  
+  IF OLD.cabin_url IS DISTINCT FROM NEW.cabin_url THEN
+    changes := changes || jsonb_build_object('cabin_url', 'changed');
+  END IF;
+
+  IF changes <> '{}' THEN
+    PERFORM audit_log(
+      NEW.organization_id,
+      'map.updated',
+      'map',
+      NEW.id,
+      changes
+    );
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_audit_map_update
+AFTER UPDATE ON maps
+FOR EACH ROW
+EXECUTE FUNCTION audit_map_update();
+
+
+-- map.deleted audit event
+CREATE OR REPLACE FUNCTION audit_map_delete()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM audit_log(
+    OLD.organization_id,
+    'map.deleted',
+    'map',
+    OLD.id,
+    jsonb_build_object('organization_id', OLD.organization_id)
+  );
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_audit_map_delete
+AFTER DELETE ON maps
+FOR EACH ROW
+EXECUTE FUNCTION audit_map_delete();
 
 
 -- cabin.created audit event
@@ -482,37 +566,3 @@ CREATE TRIGGER trg_audit_cabin_delete
 AFTER DELETE ON cabins
 FOR EACH ROW
 EXECUTE FUNCTION audit_cabin_delete();
-
-
--- map.updated audit event
-CREATE OR REPLACE FUNCTION audit_map_update()
-RETURNS trigger AS $$
-DECLARE
-  changes jsonb := '{}';
-BEGIN
-  IF OLD.background_url IS DISTINCT FROM NEW.background_url THEN
-    changes := changes || jsonb_build_object('background_url', 'changed');
-  END IF;
-  
-  IF OLD.default_cabin_url IS DISTINCT FROM NEW.default_cabin_url THEN
-    changes := changes || jsonb_build_object('default_cabin_url', 'changed');
-  END IF;
-
-  IF changes <> '{}' THEN
-    PERFORM audit_log(
-      NEW.organization_id,
-      'map.updated',
-      'map',
-      NEW.id,
-      changes
-    );
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
-
-CREATE TRIGGER trg_audit_map_update
-AFTER UPDATE ON maps
-FOR EACH ROW
-EXECUTE FUNCTION audit_map_update();
