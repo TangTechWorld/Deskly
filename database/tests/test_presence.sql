@@ -3,7 +3,7 @@
 BEGIN TRANSACTION;
 
 SET search_path TO public, tap;
-SELECT plan(19);
+SELECT plan(21);
 
 -- 1. MEMBER can SELECT presence
 SELECT mock_as_authenticated('Member');
@@ -119,17 +119,76 @@ SELECT mock_as_authenticated('Member');
 SELECT throws_ok($$INSERT INTO presence (organization_id, user_id, cabin_id, status) VALUES ($$ || quote_literal((SELECT mock_get_data('organizations', 'Org1'))) || $$, $$ || quote_literal((SELECT mock_get_data('users', 'Member'))) || $$, gen_random_uuid(), 'ACTIVE')$$);
 RESET ROLE;
 
--- 14. organization_id cannot be updated
+-- 14. Cannot INSERT presence into locked cabin
+-- Admin enters Desk4 and locks it
+SELECT mock_as_authenticated('Admin');
+INSERT INTO presence (organization_id, user_id, cabin_id, status)
+VALUES (
+  (SELECT mock_get_data('organizations', 'Org1')),
+  (SELECT mock_get_data('users', 'Admin')),
+  (SELECT mock_get_data('cabins', 'Desk4')),
+  'ACTIVE'
+)
+ON CONFLICT (organization_id, user_id) DO UPDATE SET cabin_id = EXCLUDED.cabin_id, status = EXCLUDED.status;
+-- Admin locks the cabin (allowed because present)
+UPDATE cabins SET is_locked = true WHERE id = (SELECT mock_get_data('cabins', 'Desk4'));
+RESET ROLE;
+-- Member tries to insert into locked cabin (should fail)
+SELECT mock_as_authenticated('Member');
+SELECT throws_ok($$INSERT INTO presence (organization_id, user_id, cabin_id, status) VALUES ($$ || quote_literal((SELECT mock_get_data('organizations', 'Org1'))) || $$, $$ || quote_literal((SELECT mock_get_data('users', 'Member'))) || $$, $$ || quote_literal((SELECT mock_get_data('cabins', 'Desk4'))) || $$, 'ACTIVE')$$);
+RESET ROLE;
+-- Clean up: Admin unlocks and leaves
+SELECT mock_as_authenticated('Admin');
+DELETE FROM presence WHERE organization_id = (SELECT mock_get_data('organizations', 'Org1')) AND user_id = (SELECT mock_get_data('users', 'Admin'));
+RESET ROLE;
+
+-- 15. Cannot UPDATE presence to move into locked cabin
+-- Add Member to an unlocked cabin first
+SELECT mock_as_authenticated('Member');
+INSERT INTO presence (organization_id, user_id, cabin_id, status)
+VALUES (
+  (SELECT mock_get_data('organizations', 'Org1')),
+  (SELECT mock_get_data('users', 'Member')),
+  (SELECT mock_get_data('cabins', 'Desk3')),
+  'ACTIVE'
+)
+ON CONFLICT (organization_id, user_id) DO UPDATE SET cabin_id = EXCLUDED.cabin_id, status = EXCLUDED.status;
+RESET ROLE;
+-- Admin enters Desk4 and locks it (only OWNER/ADMIN can bypass presence check for locking)
+SELECT mock_as_authenticated('Admin');
+INSERT INTO presence (organization_id, user_id, cabin_id, status)
+VALUES (
+  (SELECT mock_get_data('organizations', 'Org1')),
+  (SELECT mock_get_data('users', 'Admin')),
+  (SELECT mock_get_data('cabins', 'Desk4')),
+  'ACTIVE'
+)
+ON CONFLICT (organization_id, user_id) DO UPDATE SET cabin_id = EXCLUDED.cabin_id, status = EXCLUDED.status;
+UPDATE cabins SET is_locked = true WHERE id = (SELECT mock_get_data('cabins', 'Desk4'));
+RESET ROLE;
+-- Member tries to move into locked cabin
+SELECT mock_as_authenticated('Member');
+SELECT throws_ok($$UPDATE presence SET cabin_id = $$ || quote_literal((SELECT mock_get_data('cabins', 'Desk4'))) || $$ WHERE organization_id = $$ || quote_literal((SELECT mock_get_data('organizations', 'Org1'))) || $$ AND user_id = $$ || quote_literal((SELECT mock_get_data('users', 'Member'))) || $$$$);
+RESET ROLE;
+-- Clean up: Admin leaves and unlocks
+SELECT mock_as_authenticated('Admin');
+DELETE FROM presence WHERE organization_id = (SELECT mock_get_data('organizations', 'Org1')) AND user_id = (SELECT mock_get_data('users', 'Admin'));
+UPDATE cabins SET is_locked = false WHERE id = (SELECT mock_get_data('cabins', 'Desk4'));
+RESET ROLE;
+-- Also clean up Member
+DELETE FROM presence WHERE organization_id = (SELECT mock_get_data('organizations', 'Org1')) AND user_id = (SELECT mock_get_data('users', 'Member'));
+
+-- 16. organization_id cannot be updated
 SELECT mock_as_authenticated('Owner');
 SELECT throws_ok($$UPDATE presence SET organization_id = gen_random_uuid() WHERE organization_id = $$ || quote_literal((SELECT mock_get_data('organizations', 'Org1'))) || $$$$);
 RESET ROLE;
 
--- 15. user_id cannot be updated
+-- 17. user_id cannot be updated
 SELECT mock_as_authenticated('Owner');
 SELECT throws_ok($$UPDATE presence SET user_id = gen_random_uuid() WHERE organization_id = $$ || quote_literal((SELECT mock_get_data('organizations', 'Org1'))) || $$$$);
 RESET ROLE;
 
--- 16. Presence CASCADE deleted when member is removed
+-- 18. Presence CASCADE deleted when member is removed
 -- First add Stranger as a member
 INSERT INTO organization_members (organization_id, user_id, role, cabin_id)
 VALUES (
@@ -159,7 +218,7 @@ SELECT ok(
   'Presence CASCADE deleted when member removed'
 );
 
--- 17. Unlock cabin when last person leaves locked cabin
+-- 19. Unlock cabin when last person leaves locked cabin
 -- First lock a cabin by having someone in it
 SELECT mock_as_authenticated('Member');
 INSERT INTO presence (organization_id, user_id, cabin_id, status)
@@ -182,7 +241,7 @@ SELECT ok(
   'Cabin unlocked when last person leaves'
 );
 
--- 18. updated_at set on presence record
+-- 20. updated_at set on presence record
 SELECT mock_as_authenticated('Owner');
 INSERT INTO presence (organization_id, user_id, cabin_id, status)
 VALUES (

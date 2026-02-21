@@ -27,3 +27,5 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/Database/tests/test_results.log

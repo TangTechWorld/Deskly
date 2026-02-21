@@ -29,4 +29,4 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY= SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIE
 
 - App doesnt have server. All logic is written in UI or as Row Level Security in Supabase.
 - This command will run test cases for the database
-  `psql "postgresql://postgres.zhhfubgthhtruycvpooh:[pwd]@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require" -f run_all_tests.sql`
+  `psql "postgresql://postgres.scpbirtmmxkfbuuythdt:[pwd]@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require" -f run_all_tests.sql 2>&1 | tee test_results.log`

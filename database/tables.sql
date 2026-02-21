@@ -2,6 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pgtap;
 
 -- This schema defines the database structure for a virtual office application. It includes tables for organizations, users, maps, cabins, memberships, and presence tracking. 
 -- This supports multiple organizations, each with its own set of users, maps, and cabins. Users can have different roles (OWNER, ADMIN, MEMBER) within an organization that determine their permissions for viewing and updating data.

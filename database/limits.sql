@@ -3,8 +3,10 @@
 CREATE OR REPLACE FUNCTION throttle_presence_update()
 RETURNS trigger AS $$
 BEGIN
-  -- Throttle updates to once per 30 seconds (regardless of what changed)
-  IF OLD.updated_at > now() - interval '30 seconds' THEN
+  -- Throttle updates to once per 30 seconds
+  IF OLD.updated_at > now() - interval '30 seconds' 
+     AND NEW.status IS NOT DISTINCT FROM OLD.status 
+     AND NEW.cabin_id IS NOT DISTINCT FROM OLD.cabin_id THEN
     RAISE EXCEPTION 'Presence update throttled. Try again in a few seconds.';
   END IF;
 
@@ -16,6 +18,34 @@ CREATE TRIGGER trg_throttle_presence_update
 BEFORE UPDATE ON presence
 FOR EACH ROW
 EXECUTE FUNCTION throttle_presence_update();
+
+
+-- Trigger to enforce membership limits: max 10 organizations per user. This trigger runs before inserting a new organization_member record and checks the current counts to ensure limits are not exceeded.
+CREATE OR REPLACE FUNCTION enforce_membership_limits()
+RETURNS trigger AS $$
+DECLARE
+  member_count integer;
+  org_count integer;
+  member_limit integer := 50;
+  org_limit integer := 10;
+BEGIN
+  -- Orgs per user
+  SELECT COUNT(*) INTO org_count
+  FROM organization_members
+  WHERE user_id = NEW.user_id;
+
+  IF org_count >= org_limit THEN
+    RAISE EXCEPTION 'User organization limit (%) reached', org_limit;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET row_security = OFF;
+
+CREATE TRIGGER trg_enforce_membership_limits
+BEFORE INSERT ON organization_members
+FOR EACH ROW
+EXECUTE FUNCTION enforce_membership_limits();
 
 
 -- Maps count limit per organization. This trigger runs before inserting a new map and checks the current count of maps for the organization to ensure it does not exceed the limit.
@@ -92,7 +122,7 @@ BEFORE INSERT ON organization_invitations
 FOR EACH ROW
 EXECUTE FUNCTION enforce_invitation_limit();
 
--- Event rate limit: This trigger runs before inserting a new event and checks how many events the a user has sent in the last minute. If it exceeds the defined limit, it raises an exception to prevent spamming.
+-- Event rate limit: This trigger runs before inserting a new event and checks how many events an user has sent in the last minute. If it exceeds the defined limit, it raises an exception to prevent spamming.
 CREATE OR REPLACE FUNCTION enforce_event_rate_limit()
 RETURNS trigger AS $$
 DECLARE
