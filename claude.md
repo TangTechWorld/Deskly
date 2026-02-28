@@ -10,7 +10,8 @@ Deskly is a spatial presence layer for link-based collaboration — real-time of
 
 - **Dev server:** `bun dev` (runs at http://localhost:3000)
 - **Build:** `bun run build` (runs lint then next build)
-- **Lint:** `bun run lint`
+- **Lint:** `bun run lint` (always run this command after any changes)
+- use bun commands always - like bun install
 
 ## Architecture
 

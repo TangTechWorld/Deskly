@@ -1,11 +1,10 @@
-import { Login } from "@/components/Login";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Globe, MessageSquare, Shield, Users, Video, Zap } from "lucide-react";
 import Image from "next/image";
 
@@ -27,6 +26,7 @@ export default function LandingPage() {
             className="w-full"
             width={1200}
             height={600}
+            unoptimized
           />
         </div>
       </section>
@@ -168,11 +168,7 @@ export default function LandingPage() {
           <p className="mb-8 text-xl opacity-90">
             Join teams who are creating better remote work experiences.
           </p>
-          <Login>
-            <Button size="lg" variant="secondary">
-              Get Started for Free
-            </Button>
-          </Login>
+          <ScrollToTopButton />
         </div>
       </section>
     </div>
